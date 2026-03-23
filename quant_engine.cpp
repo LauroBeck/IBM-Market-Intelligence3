@@ -57,6 +57,12 @@ void process(const std::string& ticker) {
             TA_RSI(0, c.size()-1, c.data(), 14, &b, &n, buf.data()); rsi = buf[n-1];
             TA_SMA(0, c.size()-1, c.data(), 5, &b, &n, buf.data()); sma5 = buf[n-1];
             TA_SMA(0, c.size()-1, c.data(), 20, &b, &n, buf.data()); sma20 = buf[n-1];
+            double atr; 
+            std::vector<double> high = parse_json(s, "high"), low = parse_json(s, "low"); 
+            TA_ATR(0, c.size()-1, high.data(), low.data(), c.data(), 14, &b, &n, buf.data()); atr = buf[n-1];
+            double atr; 
+            std::vector<double> high = parse_json(s, "high"), low = parse_json(s, "low"); 
+            TA_ATR(0, c.size()-1, high.data(), low.data(), c.data(), 14, &b, &n, buf.data()); atr = buf[n-1];
 
             // ALPHA LOGIC: Sentiment Scoring
             double sentiment = (rsi * 0.4) + (sma5 > sma20 ? 30 : 0);
