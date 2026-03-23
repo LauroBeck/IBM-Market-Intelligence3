@@ -56,20 +56,19 @@ void process(const std::string& ticker) {
 
         if (close.size() >= 30) {
             int b, n;
-            double rsi, atr, sma20;
+            double rsi, atr;
             std::vector<double> buf(close.size());
             
             TA_RSI(0, close.size()-1, close.data(), 14, &b, &n, buf.data()); rsi = buf[n-1];
             TA_ATR(0, close.size()-1, high.data(), low.data(), close.data(), 14, &b, &n, buf.data()); atr = buf[n-1];
-            TA_SMA(0, close.size()-1, close.data(), 20, &b, &n, buf.data()); sma20 = buf[n-1];
 
-            std::string posture = (rsi > 60) ? "BULLISH" : (rsi < 40 ? "BEARISH" : "NEUTRAL");
+            std::string posture = (rsi > 55) ? "BULLISH" : (rsi < 45 ? "BEARISH" : "NEUTRAL");
 
             std::lock_guard<std::mutex> lock(output_mutex);
             std::cout << "| " << std::left << std::setw(6) << ticker 
-                      << " | LAST: $" << std::right << std::setw(8) << std::fixed << std::setprecision(2) << close.back()
-                      << " | ATR: " << std::setw(5) << std::setprecision(2) << atr 
-                      << " | POSTURE: " << std::setw(8) << posture << " |" << std::endl;
+                      << " | LAST: $" << std::right << std::setw(10) << std::fixed << std::setprecision(2) << close.back()
+                      << " | ATR: " << std::setw(6) << atr 
+                      << " | RSI: " << std::setw(4) << rsi << " |" << std::endl;
 
             std::ofstream audit("stargate_audit.csv", std::ios::app);
             audit << ticker << "," << rsi << "," << atr << "," << close.back() << ",2026-03-23\n";
@@ -80,15 +79,16 @@ void process(const std::string& ticker) {
 }
 
 int main() {
-    // Watchlist updated with Chevron (CVX)
-    std::vector<std::string> watch = {"^RUT", "^IXIC", "IBM", "NVDA", "CVX", "JPM"};
+    // Watchlist deployed with 3 Major Indices + High Alpha Targets
+    std::vector<std::string> watch = {"^GSPC", "^DJI", "^RUT", "^IXIC", "IBM", "NVDA", "CVX", "JPM"};
+    
     std::ofstream audit("stargate_audit.csv");
     audit << "Ticker,RSI,ATR,Price,Timestamp\n";
     audit.close();
 
     TA_Initialize();
     curl_global_init(CURL_GLOBAL_ALL);
-    std::cout << "\nSTARGATE V3 | SECTOR ROTATION AUDIT (CVX INCLUDED)" << std::endl;
+    std::cout << "\nSTARGATE V3 | MACRO INDEX & SECTOR DEPLOYMENT" << std::endl;
     std::cout << "------------------------------------------------------------" << std::endl;
     std::vector<std::thread> th;
     for(auto& t : watch) th.emplace_back(process, t);
