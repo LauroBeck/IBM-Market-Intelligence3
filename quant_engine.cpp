@@ -7,12 +7,10 @@
 #include <mutex>
 #include <cstring>
 #include <cstdlib>
-#include <cmath>
 #include <curl/curl.h>
 #include "ta-lib/include/ta_libc.h"
 
 std::mutex output_mutex;
-
 struct MemoryStruct { char *memory; size_t size; };
 
 static size_t WriteMemoryCallback(void *contents, size_t size, size_t nmemb, void *userp) {
@@ -51,27 +49,24 @@ void process(const std::string& ticker) {
 
     if(curl_easy_perform(curl) == CURLE_OK && chunk.size > 500) {
         std::string s(chunk.memory);
-        auto h = parse_json(s, "high"), l = parse_json(s, "low"), c = parse_json(s, "close");
+        auto c = parse_json(s, "close");
         if (c.size() >= 30) {
             int b, n;
-            double rsi, atr, sma5, sma20;
+            double rsi, sma5, sma20;
             std::vector<double> buf(c.size());
             TA_RSI(0, c.size()-1, c.data(), 14, &b, &n, buf.data()); rsi = buf[n-1];
-            TA_ATR(0, c.size()-1, h.data(), l.data(), c.data(), 14, &b, &n, buf.data()); atr = buf[n-1];
             TA_SMA(0, c.size()-1, c.data(), 5, &b, &n, buf.data()); sma5 = buf[n-1];
             TA_SMA(0, c.size()-1, c.data(), 20, &b, &n, buf.data()); sma20 = buf[n-1];
 
-            // Architect Forecast: 0.5 * ATR Range (Standard Morning Volatility)
-            double range = atr * 0.5;
-            double upper = c.back() + range;
-            double lower = c.back() - range;
-            std::string bias = (rsi > 50) ? "UP" : "DOWN";
+            // ALPHA LOGIC: Sentiment Scoring
+            double sentiment = (rsi * 0.4) + (sma5 > sma20 ? 30 : 0);
+            std::string posture = (sentiment > 50) ? "STRONG" : (sentiment > 40 ? "NEUTRAL" : "WEAK");
 
             std::lock_guard<std::mutex> lock(output_mutex);
             std::cout << "| " << std::left << std::setw(6) << ticker 
                       << " | $" << std::right << std::setw(9) << std::fixed << std::setprecision(2) << c.back() 
                       << " | RSI: " << std::setw(4) << std::fixed << std::setprecision(0) << rsi 
-                      << " | RANGE: [" << lower << "-" << upper << "] | BIAS: " << bias << " |" << std::endl;
+                      << " | SENTIMENT: " << std::setw(7) << posture << " |" << std::endl;
         }
     }
     if(chunk.memory) free(chunk.memory);
@@ -82,12 +77,12 @@ int main() {
     std::vector<std::string> watch = {"^RUT", "^IXIC", "IBM", "^GSPC", "NVDA"};
     TA_Initialize();
     curl_global_init(CURL_GLOBAL_ALL);
-    std::cout << "\nSTARGATE CLUSTER | MAR 24 PRE-MARKET FORECAST" << std::endl;
-    std::cout << "----------------------------------------------------------------------" << std::endl;
+    std::cout << "\nSTARGATE V3 | MAR 23 EOD SENTIMENT ANALYSIS" << std::endl;
+    std::cout << "------------------------------------------------------------" << std::endl;
     std::vector<std::thread> th;
     for(auto& t : watch) th.emplace_back(process, t);
     for(auto& t : th) t.join();
-    std::cout << "----------------------------------------------------------------------" << std::endl;
+    std::cout << "------------------------------------------------------------" << std::endl;
     curl_global_cleanup();
     TA_Shutdown(); 
     return 0;
