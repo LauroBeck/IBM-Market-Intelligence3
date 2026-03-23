@@ -5,6 +5,7 @@
 #include <iomanip>
 #include <thread>
 #include <mutex>
+#include <fstream>
 #include <cstring>
 #include <cstdlib>
 #include <curl/curl.h>
@@ -49,30 +50,33 @@ void process(const std::string& ticker) {
 
     if(curl_easy_perform(curl) == CURLE_OK && chunk.size > 500) {
         std::string s(chunk.memory);
-        auto c = parse_json(s, "close");
-        if (c.size() >= 30) {
-            int b, n;
-            double rsi, sma5, sma20;
-            std::vector<double> buf(c.size());
-            TA_RSI(0, c.size()-1, c.data(), 14, &b, &n, buf.data()); rsi = buf[n-1];
-            TA_SMA(0, c.size()-1, c.data(), 5, &b, &n, buf.data()); sma5 = buf[n-1];
-            TA_SMA(0, c.size()-1, c.data(), 20, &b, &n, buf.data()); sma20 = buf[n-1];
-            double atr; 
-            std::vector<double> high = parse_json(s, "high"), low = parse_json(s, "low"); 
-            TA_ATR(0, c.size()-1, high.data(), low.data(), c.data(), 14, &b, &n, buf.data()); atr = buf[n-1];
-            double atr; 
-            std::vector<double> high = parse_json(s, "high"), low = parse_json(s, "low"); 
-            TA_ATR(0, c.size()-1, high.data(), low.data(), c.data(), 14, &b, &n, buf.data()); atr = buf[n-1];
+        auto close = parse_json(s, "close");
+        auto high = parse_json(s, "high");
+        auto low = parse_json(s, "low");
 
-            // ALPHA LOGIC: Sentiment Scoring
+        if (close.size() >= 30) {
+            int b, n;
+            double rsi, atr, sma5, sma20;
+            std::vector<double> buf(close.size());
+            
+            TA_RSI(0, close.size()-1, close.data(), 14, &b, &n, buf.data()); rsi = buf[n-1];
+            TA_ATR(0, close.size()-1, high.data(), low.data(), close.data(), 14, &b, &n, buf.data()); atr = buf[n-1];
+            TA_SMA(0, close.size()-1, close.data(), 5, &b, &n, buf.data()); sma5 = buf[n-1];
+            TA_SMA(0, close.size()-1, close.data(), 20, &b, &n, buf.data()); sma20 = buf[n-1];
+
             double sentiment = (rsi * 0.4) + (sma5 > sma20 ? 30 : 0);
             std::string posture = (sentiment > 50) ? "STRONG" : (sentiment > 40 ? "NEUTRAL" : "WEAK");
 
             std::lock_guard<std::mutex> lock(output_mutex);
+            // 1. Terminal Output
             std::cout << "| " << std::left << std::setw(6) << ticker 
-                      << " | $" << std::right << std::setw(9) << std::fixed << std::setprecision(2) << c.back() 
-                      << " | RSI: " << std::setw(4) << std::fixed << std::setprecision(0) << rsi 
-                      << " | SENTIMENT: " << std::setw(7) << posture << " |" << std::endl;
+                      << " | RSI: " << std::fixed << std::setprecision(1) << rsi 
+                      << " | ATR: " << std::setw(5) << atr 
+                      << " | " << posture << " |" << std::endl;
+
+            // 2. Audit CSV Output (for Python Heatmap)
+            std::ofstream audit("stargate_audit.csv", std::ios::app);
+            audit << ticker << "," << rsi << "," << atr << "," << close.back() << ",2026-03-23\n";
         }
     }
     if(chunk.memory) free(chunk.memory);
@@ -81,14 +85,17 @@ void process(const std::string& ticker) {
 
 int main() {
     std::vector<std::string> watch = {"^RUT", "^IXIC", "IBM", "^GSPC", "NVDA"};
+    // Prepare CSV with Headers
+    std::ofstream audit("stargate_audit.csv");
+    audit << "Ticker,RSI,ATR,Price,Timestamp\n";
+    audit.close();
+
     TA_Initialize();
     curl_global_init(CURL_GLOBAL_ALL);
-    std::cout << "\nSTARGATE V3 | MAR 23 EOD SENTIMENT ANALYSIS" << std::endl;
-    std::cout << "------------------------------------------------------------" << std::endl;
+    std::cout << "\nSTARGATE V3 | MAR 23 EOD ENGINE" << std::endl;
     std::vector<std::thread> th;
     for(auto& t : watch) th.emplace_back(process, t);
     for(auto& t : th) t.join();
-    std::cout << "------------------------------------------------------------" << std::endl;
     curl_global_cleanup();
     TA_Shutdown(); 
     return 0;
