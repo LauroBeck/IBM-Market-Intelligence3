@@ -9,6 +9,9 @@ The **Stargate Cluster** is a high-performance, multi-threaded C++ engine design
 - **Technical Engine:** Integrated with **TA-Lib (0.4.0)** for vectorized technical calculations.
 - **Audit Trail:** Automatic CSV logging for historical entropy and rotation analysis.
 
+## Visual Analytics
+![Stargate EOD Analysis](stargate_eod_report.png)
+
 ## Key Technical Indicators (Mar 23, 2026)
 As of the March 23, 2026 session, the engine identified a significant **Divergence Alpha**:
 * **Momentum:** **IBM** decoupled from broader indices, maintaining a **BULLISH** 5/20-day SMA crossover.
