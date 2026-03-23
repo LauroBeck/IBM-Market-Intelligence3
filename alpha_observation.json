@@ -1,0 +1,12 @@
+{
+  "date": "2026-03-23",
+  "ticker": "IBM",
+  "posture": "STRONG",
+  "metrics": {
+    "atr": 3.4,
+    "rsi_weighted": true
+  },
+  "divergence": "BULLISH_DECOUPLING",
+  "target_market": "NASDAQ/S&P500",
+  "action": "MONITOR_OPEN_MAR24"
+}
